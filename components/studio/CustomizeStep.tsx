@@ -1,0 +1,205 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { ArrowLeft, Check, Loader2, Send } from "lucide-react";
+import { DEFAULT_THEME, THEMES, THEME_IDS, type ThemeId } from "@/lib/themes";
+import { TEXT_LIMITS, type CardData } from "@/lib/types";
+import type { RecordingResult } from "@/components/studio/useRecorder";
+import { PlayableCard } from "@/components/postcard/PlayableCard";
+
+export interface CardFormValues {
+  title: string;
+  message: string;
+  location: string;
+  theme: ThemeId;
+}
+
+interface CustomizeStepProps {
+  recording: RecordingResult;
+  sending: boolean;
+  submitError: string | null;
+  onBack: () => void;
+  onSubmit: (values: CardFormValues) => void;
+}
+
+export function CustomizeStep({
+  recording,
+  sending,
+  submitError,
+  onBack,
+  onSubmit,
+}: CustomizeStepProps) {
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
+  const [location, setLocation] = useState("");
+  const [theme, setTheme] = useState<ThemeId>(DEFAULT_THEME);
+
+  const createdAt = useMemo(() => new Date().toISOString(), []);
+
+  const previewCard: CardData = {
+    id: "apercu",
+    title,
+    message,
+    location,
+    theme,
+    createdAt,
+    duration: recording.duration,
+    peaks: recording.peaks,
+    audioUrl: recording.url,
+    version: 1,
+  };
+
+  return (
+    <section className="mx-auto max-w-5xl">
+      <div className="text-center">
+        <p className="kicker">Étape 2 · Habiller</p>
+        <h1 className="mt-3 font-display text-4xl font-semibold italic tracking-tight sm:text-5xl">
+          Habillez votre carte
+        </h1>
+        <p className="mx-auto mt-4 max-w-md text-ink-soft">
+          Choisissez un décor, ajoutez quelques mots. La carte est vivante :
+          écoutez-la, retournez-la.
+        </p>
+      </div>
+
+      <div className="mt-10 grid items-start gap-10 lg:grid-cols-[1.05fr_1fr]">
+        {/* Aperçu vivant */}
+        <div className="order-first mx-auto w-full max-w-xl lg:sticky lg:top-8 lg:order-last">
+          <PlayableCard card={previewCard} />
+          <p className="mt-4 text-center text-sm text-ink-soft">
+            Aperçu en direct — le petit bouton retourne la carte.
+          </p>
+        </div>
+
+        {/* Formulaire */}
+        <form
+          className="flex flex-col gap-7"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!sending) onSubmit({ title, message, location, theme });
+          }}
+        >
+          <fieldset>
+            <legend className="field-label w-full">Le décor</legend>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {THEME_IDS.map((themeId) => {
+                const themeDef = THEMES[themeId];
+                const selected = theme === themeId;
+                return (
+                  <button
+                    key={themeId}
+                    type="button"
+                    onClick={() => setTheme(themeId)}
+                    aria-pressed={selected}
+                    className={`group relative flex flex-col gap-2 rounded-2xl p-2 text-left transition-shadow ${
+                      selected
+                        ? "bg-cream shadow-md ring-2 ring-accent"
+                        : "hover:bg-cream/70 hover:shadow-sm"
+                    }`}
+                  >
+                    <span
+                      className="block h-14 w-full rounded-xl border border-black/5"
+                      style={{ background: themeDef.artGradient }}
+                      aria-hidden
+                    />
+                    {selected && (
+                      <span className="absolute right-3.5 top-3.5 grid h-6 w-6 place-items-center rounded-full bg-accent text-[#fff6ef]">
+                        <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
+                      </span>
+                    )}
+                    <span className="px-1">
+                      <span className="block text-sm font-semibold">{themeDef.name}</span>
+                      <span className="block text-xs text-ink-soft">
+                        {themeDef.tagline}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          <div>
+            <label htmlFor="card-title" className="field-label">
+              Le titre
+              <span className="font-normal tracking-normal normal-case">
+                {title.length}/{TEXT_LIMITS.title}
+              </span>
+            </label>
+            <input
+              id="card-title"
+              className="field"
+              placeholder="Le rire d'Anna"
+              value={title}
+              maxLength={TEXT_LIMITS.title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="card-location" className="field-label">
+              Le lieu <span className="font-normal tracking-normal normal-case">facultatif</span>
+            </label>
+            <input
+              id="card-location"
+              className="field"
+              placeholder="Sanary-sur-Mer"
+              value={location}
+              maxLength={TEXT_LIMITS.location}
+              onChange={(e) => setLocation(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="card-message" className="field-label">
+              Quelques mots au verso
+              <span className="font-normal tracking-normal normal-case">
+                {message.length}/{TEXT_LIMITS.message}
+              </span>
+            </label>
+            <textarea
+              id="card-message"
+              className="field resize-none"
+              rows={3}
+              placeholder="On pense à vous depuis la plage…"
+              value={message}
+              maxLength={TEXT_LIMITS.message}
+              onChange={(e) => setMessage(e.target.value)}
+            />
+          </div>
+
+          {submitError && (
+            <div className="rounded-2xl bg-accent-soft px-5 py-3.5 text-sm font-medium text-accent-deep">
+              {submitError}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={onBack}
+              disabled={sending}
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+              Ré-enregistrer
+            </button>
+            <button type="submit" className="btn btn-primary flex-1" disabled={sending}>
+              {sending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  On glisse la carte dans l&apos;enveloppe…
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4" aria-hidden />
+                  Envoyer la carte
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+  );
+}
