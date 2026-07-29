@@ -304,7 +304,45 @@ body::before {
 .pc-art-decor {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
+}
+
+/* ----- Photo à la place de l'illustration ----- */
+
+.pc-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.pc-photo-scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    rgba(10, 8, 6, 0.74) 0%,
+    rgba(10, 8, 6, 0.44) 26%,
+    rgba(10, 8, 6, 0.08) 56%,
+    rgba(10, 8, 6, 0.3) 100%
+  );
+}
+
+/* Sur une photo, l'encre du recto passe au blanc quel que soit le décor. */
+.pc-art--photo {
+  --pc-art-ink: #ffffff;
+}
+.pc-art--photo .pc-title {
+  text-shadow: 0 0.3cqw 2cqw rgba(0, 0, 0, 0.45);
+}
+.pc-art--photo .pc-duration {
+  background: rgba(12, 10, 8, 0.34);
+  border-color: rgba(255, 255, 255, 0.42);
 }
 
 .pc-duration {
@@ -508,6 +546,7 @@ body::before {
   box-shadow: var(--shadow-lift);
 }
 .pc-stamp-art {
+  position: relative;
   aspect-ratio: 4 / 4.6;
   border-radius: 0.5cqw;
   background: var(--pc-stamp-bg);
@@ -518,6 +557,24 @@ body::before {
   justify-content: center;
   gap: 0.8cqw;
   overflow: hidden;
+}
+
+/* Le timbre reprend la photo de la carte. */
+.pc-stamp-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.pc-stamp-value--onphoto {
+  position: relative;
+  color: #fff;
+  padding: 0.3cqw 1cqw;
+  border-radius: 999px;
+  background: rgba(12, 10, 8, 0.5);
+  margin-top: auto;
+  margin-bottom: 0.8cqw;
 }
 .pc-stamp-art svg {
   width: 5.4cqw;
@@ -655,6 +712,111 @@ body::before {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   letter-spacing: 0.06em;
+}
+
+/* ----- Sélecteur de décors ----- */
+
+.decor-scroll {
+  max-height: 25rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.35rem 0.6rem 0.35rem 0.35rem;
+  border: 1.5px solid var(--color-line);
+  border-radius: 1rem;
+  background: rgba(255, 253, 247, 0.5);
+  scrollbar-width: thin;
+}
+
+.decor-family {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  padding: 0.7rem 0.25rem 0.45rem;
+  position: sticky;
+  top: -0.35rem;
+  background: linear-gradient(
+    to bottom,
+    var(--color-paper) 62%,
+    rgba(244, 236, 221, 0)
+  );
+  z-index: 1;
+}
+.decor-family:first-child {
+  padding-top: 0.25rem;
+}
+
+.decor-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+@media (min-width: 420px) {
+  .decor-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.decor-tile {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0.28rem;
+  border-radius: 0.7rem;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+.decor-tile:hover {
+  background: var(--color-cream);
+  transform: translateY(-1px);
+}
+.decor-tile[aria-pressed="true"] {
+  background: var(--color-cream);
+  box-shadow: 0 0 0 2px var(--color-accent);
+}
+
+.decor-swatch {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 0.45rem;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+.decor-swatch svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.decor-name {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 1.2;
+  color: var(--color-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.decor-check {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  display: grid;
+  place-items: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: #fff6ef;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 
 /* ---------------------------------------------------------------------------

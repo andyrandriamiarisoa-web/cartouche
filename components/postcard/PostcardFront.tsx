@@ -5,9 +5,14 @@ import { Pause, Play } from "lucide-react";
 import { THEMES } from "@/lib/themes";
 import { formatDateFr, formatDuration } from "@/lib/format";
 import { Waveform } from "@/components/postcard/Waveform";
-import { ThemeDecor } from "@/components/postcard/ThemeDecor";
+import { ThemeDecor } from "@/components/postcard/decors";
 import { CartoucheGlyph } from "@/components/Logo";
-import { FALLBACK_TITLE, type CardFace } from "@/components/postcard/shared";
+import {
+  FALLBACK_TITLE,
+  safeImageUrl,
+  waveColors,
+  type CardFace,
+} from "@/components/postcard/shared";
 
 interface PostcardFrontProps {
   card: CardFace;
@@ -18,7 +23,7 @@ interface PostcardFrontProps {
   onSeek?: (fraction: number) => void;
 }
 
-/** Recto : zone illustrée, titre, lecteur avec forme d'onde. */
+/** Recto : zone illustrée (ou photo), titre, lecteur avec forme d'onde. */
 export function PostcardFront({
   card,
   playing = false,
@@ -28,6 +33,7 @@ export function PostcardFront({
   onSeek,
 }: PostcardFrontProps) {
   const theme = THEMES[card.theme];
+  const photo = safeImageUrl(card.photoUrl);
   const zoneRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const seekable = Boolean(onSeek);
@@ -44,8 +50,16 @@ export function PostcardFront({
 
   return (
     <div className="pc-front-inner">
-      <div className="pc-art">
-        <ThemeDecor theme={theme} />
+      <div className={`pc-art${photo ? " pc-art--photo" : ""}`}>
+        {photo ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="pc-photo" src={photo} alt="" aria-hidden />
+            <span className="pc-photo-scrim" aria-hidden />
+          </>
+        ) : (
+          <ThemeDecor theme={theme} />
+        )}
         <span className="pc-duration">{formatDuration(card.duration)}</span>
         <h2 className="pc-title">{card.title || FALLBACK_TITLE}</h2>
         <div className="pc-player">
@@ -107,7 +121,7 @@ export function PostcardFront({
           >
             <Waveform
               peaks={card.peaks}
-              colors={{ from: theme.waveFrom, to: theme.waveTo, rest: theme.waveRest }}
+              colors={waveColors(theme, Boolean(photo))}
               progress={progress}
             />
           </div>

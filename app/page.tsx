@@ -1,12 +1,13 @@
 import Link from "next/link";
-import { Link2, Mic, Palette, Send, Smartphone, UserRound } from "lucide-react";
-import { DEMO_CARD } from "@/lib/demo";
-import { THEMES } from "@/lib/themes";
+import { ImagePlus, Link2, Mic, Palette, Send, Smartphone, UserRound } from "lucide-react";
+import { DEMO_CARD, DEMO_PHOTO_CARD } from "@/lib/demo";
+import { THEMES, THEME_IDS, type ThemeId } from "@/lib/themes";
 import type { CardData } from "@/lib/types";
 import { SiteNav } from "@/components/SiteNav";
 import { PlayableCard } from "@/components/postcard/PlayableCard";
 import { PostcardShell } from "@/components/postcard/PostcardShell";
 import { PostcardFront } from "@/components/postcard/PostcardFront";
+import { decorGlyphs } from "@/components/postcard/decors";
 
 /** Formes d'onde décoratives et déterministes pour les cartes d'exposition. */
 function samplePeaks(seed: number): number[] {
@@ -18,55 +19,38 @@ function samplePeaks(seed: number): number[] {
   });
 }
 
+function showcaseCard(
+  id: string,
+  theme: ThemeId,
+  title: string,
+  location: string,
+  createdAt: string,
+  duration: number,
+  seed: number
+): CardData {
+  return {
+    id,
+    title,
+    message: "",
+    location,
+    theme,
+    createdAt,
+    duration,
+    peaks: samplePeaks(seed),
+    audioUrl: "",
+    version: 1,
+  };
+}
+
 const SHOWCASE: CardData[] = [
-  {
-    id: "expo-riviera",
-    title: "Les vagues, pour vous",
-    message: "",
-    location: "Sanary-sur-Mer",
-    theme: "riviera",
-    createdAt: "2026-07-24T10:00:00.000Z",
-    duration: 24,
-    peaks: samplePeaks(1),
-    audioUrl: "",
-    version: 1,
-  },
-  {
-    id: "expo-crepuscule",
-    title: "Le soir au balcon",
-    message: "",
-    location: "Lisbonne",
-    theme: "crepuscule",
-    createdAt: "2026-06-12T20:30:00.000Z",
-    duration: 18,
-    peaks: samplePeaks(2),
-    audioUrl: "",
-    version: 1,
-  },
-  {
-    id: "expo-minuit",
-    title: "Bonne nuit, papi",
-    message: "",
-    location: "",
-    theme: "minuit",
-    createdAt: "2026-03-02T21:15:00.000Z",
-    duration: 12,
-    peaks: samplePeaks(3),
-    audioUrl: "",
-    version: 1,
-  },
-  {
-    id: "expo-guinguette",
-    title: "Le marché du dimanche",
-    message: "",
-    location: "Aix-en-Provence",
-    theme: "guinguette",
-    createdAt: "2026-05-17T09:45:00.000Z",
-    duration: 30,
-    peaks: samplePeaks(4),
-    audioUrl: "",
-    version: 1,
-  },
+  { ...DEMO_PHOTO_CARD, id: "expo-photo", audioUrl: "" },
+  showcaseCard("expo-minuit", "minuit", "Bonne nuit, papi", "", "2026-03-02T21:15:00.000Z", 12, 3),
+  showcaseCard("expo-foret", "foret", "La balade du dimanche", "Fontainebleau", "2026-05-03T11:20:00.000Z", 26, 5),
+  showcaseCard("expo-guinguette", "guinguette", "Le marché du matin", "Aix-en-Provence", "2026-05-17T09:45:00.000Z", 30, 4),
+  showcaseCard("expo-lavande", "lavande", "Les cigales, enfin", "Valensole", "2026-07-08T16:05:00.000Z", 22, 8),
+  showcaseCard("expo-ville", "ville", "Notre rue, le soir", "Lyon", "2026-06-21T21:40:00.000Z", 17, 11),
+  showcaseCard("expo-neige", "neige", "La première neige", "Chamonix", "2026-01-12T14:30:00.000Z", 14, 6),
+  showcaseCard("expo-anniv", "anniversaire", "Elle a soufflé ses 3 bougies", "", "2026-04-19T17:00:00.000Z", 19, 9),
 ];
 
 const STEPS = [
@@ -78,7 +62,7 @@ const STEPS = [
   {
     icon: Palette,
     title: "Habillez",
-    text: "Quatre décors soignés, un titre, un lieu, quelques mots manuscrits au verso.",
+    text: `${THEME_IDS.length} décors dessinés à la main — ou votre propre photo — un titre, un lieu, quelques mots au verso.`,
   },
   {
     icon: Send,
@@ -133,7 +117,7 @@ export default function HomePage() {
               </Link>
             </div>
             <p className="mt-6 text-sm text-ink-soft">
-              Gratuit · 30 secondes max · beaucoup de sourires par carte
+              Gratuit · 30 secondes max · {THEME_IDS.length} décors ou votre photo
             </p>
           </div>
           <div
@@ -178,30 +162,74 @@ export default function HomePage() {
             <div>
               <p className="kicker">Les décors</p>
               <h2 className="mt-3 font-display text-3xl font-semibold italic sm:text-4xl">
-                Quatre ambiances, soignées au pixel
+                {THEME_IDS.length} ambiances — ou la vôtre
               </h2>
             </div>
             <p className="max-w-sm text-sm text-ink-soft">
-              {Object.values(THEMES)
-                .map((t) => t.name)
-                .join(", ")}{" "}
-              — chaque carte a son timbre, son cachet et sa forme d&apos;onde assortie.
+              De la Riviera au Berceau, chaque décor a son illustration, son timbre,
+              son cachet et sa forme d&apos;onde assortie. Et si vous préférez votre
+              photo, elle prend toute la place.
             </p>
           </div>
+
           <div className="mt-10 grid gap-x-6 gap-y-10 sm:grid-cols-2 xl:grid-cols-4">
             {SHOWCASE.map((card, i) => (
               <div
                 key={card.id}
                 className="transition-transform duration-300 hover:-translate-y-1.5"
-                style={{ transform: `rotate(${[-1.2, 0.8, -0.6, 1.1][i]}deg)` }}
+                style={{
+                  transform: `rotate(${[-1.2, 0.8, -0.6, 1.1, 0.7, -1, 1.2, -0.8][i]}deg)`,
+                }}
               >
                 <PostcardShell theme={card.theme} front={<PostcardFront card={card} />} />
                 <p className="mt-3 text-center text-sm font-semibold text-ink-soft">
-                  {THEMES[card.theme].name}{" "}
-                  <span className="font-normal">· {THEMES[card.theme].tagline}</span>
+                  {i === 0 ? (
+                    <span className="inline-flex items-center gap-1.5 text-accent">
+                      <ImagePlus className="h-4 w-4" aria-hidden />
+                      Avec votre photo
+                    </span>
+                  ) : (
+                    <>
+                      {THEMES[card.theme].name}{" "}
+                      <span className="font-normal">· {THEMES[card.theme].tagline}</span>
+                    </>
+                  )}
                 </p>
               </div>
             ))}
+          </div>
+
+          {/* La palette complète */}
+          <div className="mt-14">
+            <p className="mb-4 text-center text-sm font-semibold uppercase tracking-widest text-ink-soft">
+              La collection complète
+            </p>
+            <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-7 lg:grid-cols-[repeat(14,minmax(0,1fr))]">
+              {THEME_IDS.map((id) => {
+                const theme = THEMES[id];
+                return (
+                  <div key={id} className="group">
+                    <span
+                      className="relative block aspect-[16/10] w-full overflow-hidden rounded-lg border border-black/5 shadow-sm transition-transform duration-300 group-hover:-translate-y-0.5"
+                      style={{ background: theme.artGradient }}
+                      title={`${theme.name} — ${theme.tagline}`}
+                    >
+                      <svg
+                        viewBox="0 0 300 200"
+                        preserveAspectRatio="xMidYMid slice"
+                        className="absolute inset-0 h-full w-full"
+                        aria-hidden
+                      >
+                        {decorGlyphs(theme)}
+                      </svg>
+                    </span>
+                    <span className="mt-1 block truncate text-center text-[0.65rem] font-semibold text-ink-soft">
+                      {theme.name}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </section>
 

@@ -3,20 +3,33 @@
 import { THEMES } from "@/lib/themes";
 import { formatDuration, formatPostmarkDate } from "@/lib/format";
 import { CartoucheGlyph } from "@/components/Logo";
-import type { CardFace } from "@/components/postcard/shared";
+import { safeImageUrl, type CardFace } from "@/components/postcard/shared";
 
 /** Verso : message manuscrit, timbre, cachet de la poste et lignes d'adresse. */
 export function PostcardBack({ card }: { card: CardFace }) {
   const theme = THEMES[card.theme];
+  const photo = safeImageUrl(card.photoUrl);
 
   return (
     <div className="pc-back-inner">
       <div className="pc-back-head">
         <span className="pc-back-title">Carte postale sonore</span>
         <div className="pc-stamp" aria-hidden>
-          <div className="pc-stamp-art">
-            <CartoucheGlyph className="text-current" />
-            <span className="pc-stamp-value">{formatDuration(card.duration)}</span>
+          <div className={`pc-stamp-art${photo ? " pc-stamp-art--photo" : ""}`}>
+            {photo ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="pc-stamp-photo" src={photo} alt="" />
+                <span className="pc-stamp-value pc-stamp-value--onphoto">
+                  {formatDuration(card.duration)}
+                </span>
+              </>
+            ) : (
+              <>
+                <CartoucheGlyph className="text-current" />
+                <span className="pc-stamp-value">{formatDuration(card.duration)}</span>
+              </>
+            )}
           </div>
         </div>
       </div>

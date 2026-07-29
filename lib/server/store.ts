@@ -1,6 +1,6 @@
 import { del, list, put } from "@vercel/blob";
 import { cache } from "react";
-import { DEMO_CARD, DEMO_CARD_ID } from "@/lib/demo";
+import { DEMO_CARDS } from "@/lib/demo";
 import { hashToken } from "@/lib/id";
 import type { CardData, CardMeta, StoredCard } from "@/lib/types";
 
@@ -20,12 +20,16 @@ export interface CreatedCard {
   ownerToken: string;
 }
 
-/** Écrit l'audio puis les métadonnées d'une nouvelle carte dans le blob. */
+/**
+ * Écrit les médias puis les métadonnées d'une nouvelle carte dans le blob.
+ * Le JSON est écrit en dernier : une carte n'est jamais visible sans son audio.
+ */
 export async function saveCard(
   id: string,
   audio: ArrayBuffer,
   meta: CardMeta,
-  ownerToken: string
+  ownerToken: string,
+  photo?: ArrayBuffer
 ): Promise<CardData> {
   const audioBlob = await put(`${prefixFor(id)}audio.wav`, audio, {
     access: "public",
@@ -35,11 +39,22 @@ export async function saveCard(
     cacheControlMaxAge: AUDIO_CACHE_SECONDS,
   });
 
+  const photoBlob = photo
+    ? await put(`${prefixFor(id)}photo.jpg`, photo, {
+        access: "public",
+        addRandomSuffix: false,
+        allowOverwrite: false,
+        contentType: "image/jpeg",
+        cacheControlMaxAge: AUDIO_CACHE_SECONDS,
+      })
+    : null;
+
   const stored: StoredCard = {
     ...meta,
     id,
     createdAt: new Date().toISOString(),
     audioUrl: audioBlob.url,
+    ...(photoBlob ? { photoUrl: photoBlob.url } : {}),
     ownerHash: await hashToken(ownerToken),
     version: 1,
   };
@@ -58,7 +73,7 @@ export async function saveCard(
 }
 
 async function readStoredCard(id: string): Promise<StoredCard | null> {
-  const { blobs } = await list({ prefix: prefixFor(id), limit: 10 });
+  const { blobs } = await list({ prefix: prefixFor(id), limit: 20 });
   const jsonBlob = blobs.find((b) => b.pathname.endsWith("card.json"));
   if (!jsonBlob) return null;
   const response = await fetch(jsonBlob.url, { cache: "no-store" });
@@ -78,8 +93,9 @@ export type CardLookup =
  * `generateMetadata`, la page et l'image OG partagent la même lecture.
  */
 export const getCard = cache(async (id: string): Promise<CardLookup> => {
-  if (id === DEMO_CARD_ID) {
-    return { status: "found", card: DEMO_CARD };
+  const demo = DEMO_CARDS[id];
+  if (demo) {
+    return { status: "found", card: demo };
   }
   if (!blobConfigured()) {
     return { status: "unconfigured" };
@@ -110,7 +126,7 @@ export type DeleteResult = "deleted" | "not_found" | "forbidden" | "unconfigured
 export async function deleteCard(id: string, ownerToken: string): Promise<DeleteResult> {
   if (!blobConfigured()) return "unconfigured";
 
-  const { blobs } = await list({ prefix: prefixFor(id), limit: 10 });
+  const { blobs } = await list({ prefix: prefixFor(id), limit: 20 });
   if (blobs.length === 0) return "not_found";
 
   const jsonBlob = blobs.find((b) => b.pathname.endsWith("card.json"));

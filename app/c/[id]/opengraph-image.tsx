@@ -2,9 +2,10 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { getCard } from "@/lib/server/store";
-import { THEMES, type ThemeDef } from "@/lib/themes";
+import { THEMES } from "@/lib/themes";
 import { formatDateFr, formatDuration } from "@/lib/format";
-import type { CardData } from "@/lib/types";
+import { PHOTO_ASPECT, type CardData } from "@/lib/types";
+import { decorGlyphs } from "@/components/postcard/decors";
 import { FALLBACK_TITLE } from "@/components/postcard/shared";
 
 export const runtime = "nodejs";
@@ -12,12 +13,48 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const alt = "Carte postale sonore";
 
+const PAD = 34;
+const ART_W = size.width - PAD * 2;
+const ART_H = size.height - PAD * 2;
+
+/**
+ * Satori écarte un SVG plus grand que la boîte de contenu de son parent : la
+ * zone illustrée n'a donc aucun padding (il est porté par le calque de texte),
+ * et le décor est découpé via le viewBox plutôt qu'agrandi. Le viewBox garde
+ * exactement le ratio du cadre, ce qui évite toute déformation.
+ */
+const DECOR_VB_H = (300 * ART_H) / ART_W;
+const DECOR_VB_Y = 26;
+/** La photo est toujours ré-encodée en 4:3 : on la recadre en « cover ». */
+const PHOTO_H = Math.round(ART_W / PHOTO_ASPECT);
+const PHOTO_TOP = Math.round((ART_H - PHOTO_H) / 2);
+
 async function loadDisplayFont(): Promise<ArrayBuffer | null> {
   try {
     const data = await readFile(
       join(process.cwd(), "assets", "fonts", "Fraunces-SemiBoldItalic.ttf")
     );
     return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+  } catch {
+    return null;
+  }
+}
+
+/** La photo doit être embarquée en data URI : satori ne charge pas d'URL relative. */
+async function loadPhoto(url: string | undefined): Promise<string | null> {
+  if (!url) return null;
+  try {
+    if (url.startsWith("/")) {
+      const data = await readFile(join(process.cwd(), "public", url));
+      const type = url.endsWith(".png") ? "image/png" : "image/jpeg";
+      return `data:${type};base64,${data.toString("base64")}`;
+    }
+    if (!url.startsWith("https://")) return null;
+    const response = await fetch(url, { cache: "force-cache" });
+    if (!response.ok) return null;
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.byteLength > 6_000_000) return null;
+    return `data:image/jpeg;base64,${buffer.toString("base64")}`;
   } catch {
     return null;
   }
@@ -38,154 +75,6 @@ const GENERIC_CARD: CardData = {
   version: 1,
 };
 
-function Decor({ theme }: { theme: ThemeDef }) {
-  if (theme.decor === "sun") {
-    return (
-      <div style={{ display: "flex", position: "absolute", top: 44, left: 56 }}>
-        <div
-          style={{
-            position: "absolute",
-            top: -26,
-            left: -26,
-            width: 184,
-            height: 184,
-            borderRadius: 999,
-            border: `5px solid ${theme.decorColor2}`,
-            opacity: 0.55,
-          }}
-        />
-        <div
-          style={{
-            width: 132,
-            height: 132,
-            borderRadius: 999,
-            background: theme.decorColor,
-            opacity: 0.95,
-          }}
-        />
-      </div>
-    );
-  }
-  if (theme.decor === "dusk") {
-    return (
-      <div style={{ display: "flex", position: "absolute", top: 44, left: 56 }}>
-        <div
-          style={{
-            width: 150,
-            height: 150,
-            borderRadius: 999,
-            background: theme.decorColor,
-            opacity: 0.92,
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            top: 52,
-            left: -24,
-            width: 200,
-            height: 12,
-            borderRadius: 8,
-            background: theme.decorColor2,
-            opacity: 0.6,
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            top: 92,
-            left: -8,
-            width: 172,
-            height: 10,
-            borderRadius: 8,
-            background: theme.decorColor2,
-            opacity: 0.45,
-          }}
-        />
-      </div>
-    );
-  }
-  if (theme.decor === "stars") {
-    return (
-      <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width: 1200, height: 400 }}>
-        <div
-          style={{
-            position: "absolute",
-            top: 48,
-            left: 64,
-            width: 118,
-            height: 118,
-            borderRadius: 999,
-            background: theme.decorColor,
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            top: 34,
-            left: 96,
-            width: 104,
-            height: 104,
-            borderRadius: 999,
-            background: "#232E5C",
-          }}
-        />
-        {[
-          [260, 90, 8],
-          [340, 52, 6],
-          [430, 120, 7],
-          [540, 60, 5],
-          [660, 100, 8],
-          [780, 48, 6],
-          [900, 110, 7],
-          [1020, 70, 5],
-        ].map(([x, y, s], i) => (
-          <div
-            key={i}
-            style={{
-              position: "absolute",
-              top: y,
-              left: x,
-              width: s,
-              height: s,
-              borderRadius: 999,
-              background: theme.decorColor2,
-              opacity: 0.8,
-            }}
-          />
-        ))}
-      </div>
-    );
-  }
-  // bunting
-  return (
-    <div
-      style={{
-        position: "absolute",
-        top: 40,
-        left: 40,
-        right: 40,
-        display: "flex",
-        justifyContent: "space-between",
-      }}
-    >
-      {Array.from({ length: 12 }, (_, i) => (
-        <div
-          key={i}
-          style={{
-            width: 34,
-            height: 34,
-            transform: `rotate(45deg) translateY(${i % 2 === 0 ? 0 : 14}px)`,
-            borderRadius: 8,
-            background: i % 2 === 0 ? theme.decorColor : theme.decorColor2,
-            opacity: 0.92,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
 export default async function OgImage({
   params,
 }: {
@@ -196,14 +85,20 @@ export default async function OgImage({
   const card = lookup.status === "found" ? lookup.card : GENERIC_CARD;
   const theme = THEMES[card.theme];
   const title = card.title || FALLBACK_TITLE;
-  const fontData = await loadDisplayFont();
+
+  const [fontData, photo] = await Promise.all([
+    loadDisplayFont(),
+    loadPhoto(card.photoUrl),
+  ]);
+
+  const artInk = photo ? "#FFFFFF" : theme.artInk;
+  const waveFrom = photo ? "#FFFFFF" : theme.waveFrom;
+  const waveTo = photo ? "#FFE9B3" : theme.waveTo;
 
   const metaLine = [card.location, formatDateFr(card.createdAt)]
     .filter(Boolean)
     .join("  ·  ")
     .toUpperCase();
-
-  const barCount = Math.min(card.peaks.length, 72);
 
   return new ImageResponse(
     (
@@ -213,24 +108,64 @@ export default async function OgImage({
           height: "100%",
           display: "flex",
           background: theme.paper,
-          padding: 34,
+          padding: PAD,
         }}
       >
         <div
           style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "flex-end",
             position: "relative",
+            display: "flex",
+            width: ART_W,
+            height: ART_H,
             borderRadius: 30,
             background: theme.artGradient,
-            padding: "52px 56px",
             overflow: "hidden",
           }}
         >
-          <Decor theme={theme} />
+          {photo ? (
+            <>
+              <img
+                src={photo}
+                alt=""
+                width={ART_W}
+                height={PHOTO_H}
+                style={{ position: "absolute", top: PHOTO_TOP, left: 0 }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: ART_W,
+                  height: ART_H,
+                  background:
+                    "linear-gradient(to top, rgba(10,8,6,0.74) 0%, rgba(10,8,6,0.42) 28%, rgba(10,8,6,0.06) 58%, rgba(10,8,6,0.3) 100%)",
+                }}
+              />
+            </>
+          ) : (
+            <svg
+              viewBox={`0 ${DECOR_VB_Y} 300 ${DECOR_VB_H}`}
+              width={ART_W}
+              height={ART_H}
+              style={{ position: "absolute", left: 0, top: 0 }}
+            >
+              {decorGlyphs(theme)}
+            </svg>
+          )}
 
+          {/* Calque de texte : c'est lui qui porte les marges intérieures. */}
+          <div
+            style={{
+              position: "relative",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "flex-end",
+              width: ART_W,
+              height: ART_H,
+              padding: "52px 56px",
+            }}
+          >
           {/* Pastille durée */}
           <div
             style={{
@@ -242,15 +177,15 @@ export default async function OgImage({
               gap: 12,
               padding: "12px 26px",
               borderRadius: 999,
-              background: "rgba(255, 253, 245, 0.22)",
-              border: `2.5px solid ${theme.artInk}55`,
-              color: theme.artInk,
+              background: photo ? "rgba(12,10,8,0.34)" : "rgba(255, 253, 245, 0.22)",
+              border: `2.5px solid ${photo ? "rgba(255,255,255,0.42)" : `${theme.artInk}55`}`,
+              color: artInk,
               fontSize: 28,
               fontWeight: 700,
             }}
           >
             <svg width="26" height="26" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z" fill={theme.artInk} />
+              <path d="M8 5v14l11-7z" fill={artInk} />
             </svg>
             {formatDuration(card.duration)}
           </div>
@@ -263,7 +198,7 @@ export default async function OgImage({
               fontWeight: 600,
               fontSize: title.length > 26 ? 58 : 74,
               lineHeight: 1.05,
-              color: theme.artInk,
+              color: artInk,
               marginBottom: 36,
               maxWidth: 1000,
             }}
@@ -272,22 +207,15 @@ export default async function OgImage({
           </div>
 
           {/* Forme d'onde */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              height: 150,
-            }}
-          >
-            {card.peaks.slice(0, barCount).map((peak, i) => (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, height: 150 }}>
+            {card.peaks.slice(0, 72).map((peak, i) => (
               <div
                 key={i}
                 style={{
                   width: 9,
                   height: Math.max(peak, 0.07) * 150,
                   borderRadius: 5,
-                  background: `linear-gradient(180deg, ${theme.waveFrom}, ${theme.waveTo})`,
+                  background: `linear-gradient(180deg, ${waveFrom}, ${waveTo})`,
                 }}
               />
             ))}
@@ -305,8 +233,8 @@ export default async function OgImage({
             <div
               style={{
                 display: "flex",
-                color: theme.artInk,
-                opacity: 0.9,
+                color: artInk,
+                opacity: 0.92,
                 fontSize: 24,
                 fontWeight: 700,
                 letterSpacing: 4,
@@ -346,6 +274,7 @@ export default async function OgImage({
               </svg>
               CARTOUCHE
             </div>
+          </div>
           </div>
         </div>
       </div>
