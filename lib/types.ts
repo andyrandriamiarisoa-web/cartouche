@@ -9,6 +9,13 @@ export const MAX_DURATION_S = 30;
 /** Taille maximale acceptée pour le fichier audio (WAV mono ≤ 48 kHz · 30 s ≈ 2,9 Mo). */
 export const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
 
+/** Taille maximale acceptée pour la photo, après ré-encodage côté client. */
+export const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
+
+/** Largeur cible de la photo ré-encodée (recadrée en 4:3). */
+export const PHOTO_MAX_WIDTH = 1600;
+export const PHOTO_ASPECT = 4 / 3;
+
 export const TEXT_LIMITS = {
   title: 48,
   message: 180,
@@ -30,6 +37,8 @@ export interface CardData extends CardMeta {
   id: string;
   createdAt: string;
   audioUrl: string;
+  /** Photo choisie par l'expéditeur — remplace l'illustration du décor. */
+  photoUrl?: string;
   version: 1;
 }
 
@@ -50,6 +59,7 @@ export interface GalleryEntry {
   createdAt: string;
   duration: number;
   peaks: number[];
+  photoUrl?: string;
   /** Jeton de propriété permettant la suppression définitive. */
   ownerToken?: string;
 }

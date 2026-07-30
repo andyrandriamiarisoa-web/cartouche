@@ -5,6 +5,7 @@ import { useId } from "react";
 const VIEW_W = 720;
 const VIEW_H = 120;
 
+/** Couleurs des barres : dégradé de la partie lue, teinte du reste. */
 export interface WaveColors {
   from: string;
   to: string;

@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "demo:audio": "node scripts/generate-demo-audio.mjs",
+    "demo:photo": "node scripts/generate-demo-photo.mjs",
     "screenshots": "node scripts/screenshots.mjs"
   },
   "engines": {

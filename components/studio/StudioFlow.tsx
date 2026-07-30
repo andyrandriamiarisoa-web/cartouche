@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CardData } from "@/lib/types";
+import type { ProcessedPhoto } from "@/lib/photo";
 import { addToGallery } from "@/lib/gallery";
 import { useRecorder } from "@/components/studio/useRecorder";
 import { RecordStep } from "@/components/studio/RecordStep";
@@ -53,9 +54,23 @@ export function StudioFlow() {
   const [step, setStep] = useState<Step>("record");
   const [sending, setSending] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [photo, setPhoto] = useState<ProcessedPhoto | null>(null);
   const [published, setPublished] = useState<{ card: CardData; path: string } | null>(
     null
   );
+
+  // L'URL objet de la photo doit être libérée à chaque remplacement.
+  const photoUrlRef = useRef<string | null>(null);
+  const changePhoto = useCallback((next: ProcessedPhoto | null) => {
+    if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+    photoUrlRef.current = next?.url ?? null;
+    setPhoto(next);
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+    };
+  }, []);
 
   const submit = async (values: CardFormValues) => {
     const recording = recorder.result;
@@ -66,6 +81,7 @@ export function StudioFlow() {
     try {
       const form = new FormData();
       form.append("audio", recording.wavBlob, "cartouche.wav");
+      if (photo) form.append("photo", photo.blob, "cartouche.jpg");
       form.append(
         "meta",
         JSON.stringify({
@@ -89,8 +105,10 @@ export function StudioFlow() {
         path: string;
         createdAt: string;
         ownerToken: string;
+        photoUrl: string | null;
       };
 
+      const photoUrl = data.photoUrl ?? undefined;
       const card: CardData = {
         id: data.id,
         ...values,
@@ -99,6 +117,7 @@ export function StudioFlow() {
         peaks: recording.peaks,
         // Lecture instantanée depuis l'enregistrement local, le blob prend le relai ensuite.
         audioUrl: recording.url,
+        photoUrl,
         version: 1,
       };
 
@@ -112,6 +131,7 @@ export function StudioFlow() {
         createdAt: data.createdAt,
         duration: recording.duration,
         peaks: recording.peaks,
+        photoUrl,
         ownerToken: data.ownerToken,
       });
 
@@ -127,6 +147,7 @@ export function StudioFlow() {
 
   const createAnother = () => {
     recorder.reset();
+    changePhoto(null);
     setPublished(null);
     setSubmitError(null);
     setStep("record");
@@ -142,6 +163,8 @@ export function StudioFlow() {
       {step === "dress" && recorder.result && (
         <CustomizeStep
           recording={recorder.result}
+          photo={photo}
+          onPhotoChange={changePhoto}
           sending={sending}
           submitError={submitError}
           onBack={() => {

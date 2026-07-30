@@ -62,6 +62,18 @@ const GALLERY_SEED = [
     duration: 28,
     peaks: samplePeaks(4),
   },
+  {
+    id: "seed4",
+    path: "/c/demo-photo",
+    title: "Notre coucher de soleil",
+    message: "La photo du soir, avec le bruit des vagues.",
+    location: "Sanary-sur-Mer",
+    theme: "crepuscule",
+    createdAt: "2026-07-25T19:40:00.000Z",
+    duration: 21,
+    peaks: samplePeaks(2),
+    photoUrl: "/demo/photo-plage.png",
+  },
 ];
 
 const errors = [];
@@ -103,7 +115,6 @@ async function main() {
     await page.goto(`${BASE}/`);
     await settle(page);
     await page.screenshot({ path: join(outDir, "accueil.png") });
-    await page.screenshot({ path: join(outDir, "accueil-complet.png"), fullPage: true });
     await page.close();
   }
 
@@ -140,6 +151,28 @@ async function main() {
     await page.click("text=Habiller ma carte");
     await page.waitForTimeout(1400);
     await page.screenshot({ path: join(outDir, "studio-habillage.png") });
+    // Parcours photo : import, recadrage et rendu sur la carte.
+    await page.setInputFiles(
+      'input[type="file"]',
+      join(root, "public", "demo", "photo-plage.png")
+    );
+    await page.waitForSelector("text=Photo ajoutée", { timeout: 15000 });
+    await page.waitForTimeout(900);
+    await page.screenshot({ path: join(outDir, "studio-photo.png") });
+    await page.close();
+  }
+
+  {
+    const page = await desktop.newPage();
+    watch(page, "carte-photo");
+    await page.goto(`${BASE}/c/demo-photo`);
+    await settle(page);
+    await page.click(".pc-play");
+    await page.waitForTimeout(3000);
+    await page.screenshot({ path: join(outDir, "carte-photo.png") });
+    await page.click(".pc-flip");
+    await page.waitForTimeout(1000);
+    await page.screenshot({ path: join(outDir, "carte-photo-verso.png") });
     await page.close();
   }
 
@@ -187,11 +220,16 @@ async function main() {
   await browser.close();
 
   // ---------------- Image OpenGraph ----------------
-  const og = await fetch(`${BASE}/c/demo/opengraph-image`);
-  if (og.ok) {
-    writeFileSync(join(outDir, "og-demo.png"), Buffer.from(await og.arrayBuffer()));
-  } else {
-    errors.push(`[og] HTTP ${og.status}`);
+  for (const [id, file] of [
+    ["demo", "og-demo.png"],
+    ["demo-photo", "og-demo-photo.png"],
+  ]) {
+    const og = await fetch(`${BASE}/c/${id}/opengraph-image`);
+    if (og.ok) {
+      writeFileSync(join(outDir, file), Buffer.from(await og.arrayBuffer()));
+    } else {
+      errors.push(`[og:${id}] HTTP ${og.status}`);
+    }
   }
 
   if (errors.length) {

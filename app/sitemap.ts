@@ -16,6 +16,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.6,
     },
     {
+      url: new URL("/c/demo-photo", base).toString(),
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+    {
       url: new URL("/galerie", base).toString(),
       changeFrequency: "monthly",
       priority: 0.4,

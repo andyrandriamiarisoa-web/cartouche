@@ -80,3 +80,8 @@ export function looksLikeWav(bytes: Uint8Array): boolean {
     String.fromCharCode(...bytes.slice(start, end));
   return ascii(0, 4) === "RIFF" && ascii(8, 12) === "WAVE";
 }
+
+/** Vérifie la signature JPEG (SOI + marqueur) d'une photo. */
+export function looksLikeJpeg(bytes: Uint8Array): boolean {
+  return bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+}

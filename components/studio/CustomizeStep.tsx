@@ -1,11 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowLeft, Check, Loader2, Send } from "lucide-react";
+import { ArrowLeft, Loader2, Send } from "lucide-react";
 import { DEFAULT_THEME, THEMES, THEME_IDS, type ThemeId } from "@/lib/themes";
 import { TEXT_LIMITS, type CardData } from "@/lib/types";
+import type { ProcessedPhoto } from "@/lib/photo";
 import type { RecordingResult } from "@/components/studio/useRecorder";
 import { PlayableCard } from "@/components/postcard/PlayableCard";
+import { DecorPicker } from "@/components/studio/DecorPicker";
+import { PhotoField } from "@/components/studio/PhotoField";
 
 export interface CardFormValues {
   title: string;
@@ -16,6 +19,8 @@ export interface CardFormValues {
 
 interface CustomizeStepProps {
   recording: RecordingResult;
+  photo: ProcessedPhoto | null;
+  onPhotoChange: (photo: ProcessedPhoto | null) => void;
   sending: boolean;
   submitError: string | null;
   onBack: () => void;
@@ -24,6 +29,8 @@ interface CustomizeStepProps {
 
 export function CustomizeStep({
   recording,
+  photo,
+  onPhotoChange,
   sending,
   submitError,
   onBack,
@@ -46,6 +53,7 @@ export function CustomizeStep({
     duration: recording.duration,
     peaks: recording.peaks,
     audioUrl: recording.url,
+    photoUrl: photo?.url,
     version: 1,
   };
 
@@ -57,7 +65,7 @@ export function CustomizeStep({
           Habillez votre carte
         </h1>
         <p className="mx-auto mt-4 max-w-md text-ink-soft">
-          Choisissez un décor, ajoutez quelques mots. La carte est vivante :
+          {THEME_IDS.length} décors, ou votre propre photo. La carte est vivante :
           écoutez-la, retournez-la.
         </p>
       </div>
@@ -79,45 +87,23 @@ export function CustomizeStep({
             if (!sending) onSubmit({ title, message, location, theme });
           }}
         >
-          <fieldset>
-            <legend className="field-label w-full">Le décor</legend>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {THEME_IDS.map((themeId) => {
-                const themeDef = THEMES[themeId];
-                const selected = theme === themeId;
-                return (
-                  <button
-                    key={themeId}
-                    type="button"
-                    onClick={() => setTheme(themeId)}
-                    aria-pressed={selected}
-                    className={`group relative flex flex-col gap-2 rounded-2xl p-2 text-left transition-shadow ${
-                      selected
-                        ? "bg-cream shadow-md ring-2 ring-accent"
-                        : "hover:bg-cream/70 hover:shadow-sm"
-                    }`}
-                  >
-                    <span
-                      className="block h-14 w-full rounded-xl border border-black/5"
-                      style={{ background: themeDef.artGradient }}
-                      aria-hidden
-                    />
-                    {selected && (
-                      <span className="absolute right-3.5 top-3.5 grid h-6 w-6 place-items-center rounded-full bg-accent text-[#fff6ef]">
-                        <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
-                      </span>
-                    )}
-                    <span className="px-1">
-                      <span className="block text-sm font-semibold">{themeDef.name}</span>
-                      <span className="block text-xs text-ink-soft">
-                        {themeDef.tagline}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
+          <div>
+            <p className="field-label">
+              Le décor
+              <span className="font-normal tracking-normal normal-case">
+                {THEMES[theme].name} · {THEMES[theme].tagline}
+              </span>
+            </p>
+            <DecorPicker value={theme} onChange={setTheme} mutedByPhoto={Boolean(photo)} />
+            {photo && (
+              <p className="mt-2 text-xs text-ink-soft">
+                Votre photo occupe le devant de la carte : le décor habille le
+                papier, le timbre et la forme d&apos;onde.
+              </p>
+            )}
+          </div>
+
+          <PhotoField photo={photo} onChange={onPhotoChange} disabled={sending} />
 
           <div>
             <label htmlFor="card-title" className="field-label">

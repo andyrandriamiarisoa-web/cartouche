@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { newCardId, newOwnerToken } from "@/lib/id";
 import { blobConfigured, saveCard } from "@/lib/server/store";
-import { MAX_AUDIO_BYTES } from "@/lib/types";
-import { looksLikeWav, parseCardMeta } from "@/lib/validate";
+import { MAX_AUDIO_BYTES, MAX_PHOTO_BYTES } from "@/lib/types";
+import { looksLikeJpeg, looksLikeWav, parseCardMeta } from "@/lib/validate";
 
 export const runtime = "nodejs";
 
@@ -68,12 +68,31 @@ export async function POST(request: Request) {
     return jsonError(415, "Format audio inattendu (WAV requis).");
   }
 
+  // La photo est facultative : elle remplace l'illustration du décor.
+  const photo = form.get("photo");
+  let photoBytes: ArrayBuffer | undefined;
+  if (photo instanceof File && photo.size > 0) {
+    if (photo.size > MAX_PHOTO_BYTES) {
+      return jsonError(413, "Photo trop volumineuse.");
+    }
+    photoBytes = await photo.arrayBuffer();
+    if (!looksLikeJpeg(new Uint8Array(photoBytes))) {
+      return jsonError(415, "Format de photo inattendu (JPEG requis).");
+    }
+  }
+
   try {
     const id = newCardId();
     const ownerToken = newOwnerToken();
-    const card = await saveCard(id, audioBytes, parsed.meta, ownerToken);
+    const card = await saveCard(id, audioBytes, parsed.meta, ownerToken, photoBytes);
     return NextResponse.json(
-      { id, path: `/c/${id}`, createdAt: card.createdAt, ownerToken },
+      {
+        id,
+        path: `/c/${id}`,
+        createdAt: card.createdAt,
+        ownerToken,
+        photoUrl: card.photoUrl ?? null,
+      },
       { status: 201 }
     );
   } catch {
