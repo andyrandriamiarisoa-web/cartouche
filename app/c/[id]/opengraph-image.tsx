@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
-import { getCard } from "@/lib/server/store";
+import { getCard, readCardMediaBytes } from "@/lib/server/store";
 import { THEMES } from "@/lib/themes";
 import { formatDateFr, formatDuration } from "@/lib/format";
 import { PHOTO_ASPECT, type CardData } from "@/lib/types";
@@ -40,21 +40,23 @@ async function loadDisplayFont(): Promise<ArrayBuffer | null> {
   }
 }
 
-/** La photo doit être embarquée en data URI : satori ne charge pas d'URL relative. */
-async function loadPhoto(url: string | undefined): Promise<string | null> {
-  if (!url) return null;
+/**
+ * La photo doit être embarquée en data URI : satori ne charge pas d'URL
+ * relative, et celle d'une vraie carte pointe de toute façon vers une route de
+ * l'application, pas vers un fichier accessible. Les cartes de démonstration,
+ * elles, sont livrées avec l'application.
+ */
+async function loadPhoto(card: CardData): Promise<string | null> {
+  if (!card.photoUrl) return null;
   try {
-    if (url.startsWith("/")) {
-      const data = await readFile(join(process.cwd(), "public", url));
-      const type = url.endsWith(".png") ? "image/png" : "image/jpeg";
+    if (card.photoUrl.startsWith("/demo/")) {
+      const data = await readFile(join(process.cwd(), "public", card.photoUrl));
+      const type = card.photoUrl.endsWith(".png") ? "image/png" : "image/jpeg";
       return `data:${type};base64,${data.toString("base64")}`;
     }
-    if (!url.startsWith("https://")) return null;
-    const response = await fetch(url, { cache: "force-cache" });
-    if (!response.ok) return null;
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.byteLength > 6_000_000) return null;
-    return `data:image/jpeg;base64,${buffer.toString("base64")}`;
+    const bytes = await readCardMediaBytes(card.id, "photo");
+    if (!bytes || bytes.byteLength > 6_000_000) return null;
+    return `data:image/jpeg;base64,${bytes.toString("base64")}`;
   } catch {
     return null;
   }
@@ -88,7 +90,7 @@ export default async function OgImage({
 
   const [fontData, photo] = await Promise.all([
     loadDisplayFont(),
-    loadPhoto(card.photoUrl),
+    loadPhoto(card),
   ]);
 
   const artInk = photo ? "#FFFFFF" : theme.artInk;
