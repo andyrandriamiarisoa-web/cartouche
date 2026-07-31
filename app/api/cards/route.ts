@@ -95,7 +95,13 @@ export async function POST(request: Request) {
       },
       { status: 201 }
     );
-  } catch {
+  } catch (err) {
+    // Sans cette trace, un échec de stockage n'apparaît nulle part dans les
+    // journaux : on ne garde que le message, jamais le contenu de la carte.
+    console.error(
+      "[cards] échec d'écriture dans le blob :",
+      err instanceof Error ? `${err.name}: ${err.message}` : String(err)
+    );
     return jsonError(500, "L'envoi a échoué, réessayez dans un instant.");
   }
 }

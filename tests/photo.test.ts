@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { looksLikeJpeg } from "@/lib/validate";
 import { safeImageUrl } from "@/components/postcard/shared";
-import { MAX_PHOTO_BYTES, PHOTO_ASPECT, PHOTO_MAX_WIDTH } from "@/lib/types";
+import {
+  MAX_AUDIO_BYTES,
+  MAX_PHOTO_BYTES,
+  MAX_UPLOAD_BYTES,
+  PHOTO_ASPECT,
+  PHOTO_MAX_WIDTH,
+  PHOTO_TARGET_BYTES,
+} from "@/lib/types";
 
 describe("looksLikeJpeg", () => {
   it("reconnaît un en-tête JPEG", () => {
@@ -38,10 +45,18 @@ describe("safeImageUrl", () => {
   });
 });
 
-describe("contraintes photo", () => {
-  it("reste dans des limites raisonnables", () => {
+describe("contraintes d'envoi", () => {
+  it("garde des dimensions de photo raisonnables", () => {
     expect(PHOTO_ASPECT).toBeCloseTo(4 / 3);
     expect(PHOTO_MAX_WIDTH).toBeLessThanOrEqual(2000);
-    expect(MAX_PHOTO_BYTES).toBeLessThanOrEqual(8 * 1024 * 1024);
+    expect(PHOTO_TARGET_BYTES).toBeLessThanOrEqual(MAX_PHOTO_BYTES);
+  });
+
+  it("tient sous la limite de corps de requête de Vercel, audio + photo compris", () => {
+    // Vercel coupe à 4,5 Mo : le pire cas doit rester en dessous, sinon la
+    // requête est rejetée par la plateforme sans message exploitable.
+    const VERCEL_BODY_LIMIT = 4.5 * 1024 * 1024;
+    expect(MAX_UPLOAD_BYTES).toBeLessThan(VERCEL_BODY_LIMIT);
+    expect(MAX_AUDIO_BYTES + MAX_PHOTO_BYTES).toBeLessThanOrEqual(VERCEL_BODY_LIMIT);
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CardData } from "@/lib/types";
+import { MAX_UPLOAD_BYTES, type CardData } from "@/lib/types";
 import type { ProcessedPhoto } from "@/lib/photo";
 import { addToGallery } from "@/lib/gallery";
 import { useRecorder } from "@/components/studio/useRecorder";
@@ -77,6 +77,17 @@ export function StudioFlow() {
     if (!recording) return;
     setSending(true);
     setSubmitError(null);
+
+    // Au-delà de la limite de corps de requête, Vercel coupe la requête avant
+    // notre code : mieux vaut le dire clairement que laisser un échec opaque.
+    const uploadBytes = recording.wavBlob.size + (photo?.blob.size ?? 0);
+    if (uploadBytes > MAX_UPLOAD_BYTES) {
+      setSubmitError(
+        "L'ensemble audio + photo est trop lourd. Retirez la photo ou refaites un enregistrement plus court."
+      );
+      setSending(false);
+      return;
+    }
 
     try {
       const form = new FormData();

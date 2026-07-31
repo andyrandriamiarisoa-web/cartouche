@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { computePeaks } from "@/lib/audio/peaks";
 import { encodeWav, mixToMono } from "@/lib/audio/wav";
-import { MAX_DURATION_S } from "@/lib/types";
+import { AUDIO_TARGET_RATE, MAX_DURATION_S } from "@/lib/types";
 
 export type RecorderStatus =
   | "idle"
@@ -32,6 +32,40 @@ const MIME_CANDIDATES = [
 function pickMimeType(): string | undefined {
   if (typeof MediaRecorder === "undefined") return undefined;
   return MIME_CANDIDATES.find((m) => MediaRecorder.isTypeSupported(m));
+}
+
+/**
+ * Ramène l'enregistrement en mono à `AUDIO_TARGET_RATE`. Le WAV est deux fois
+ * plus léger qu'au 48 kHz d'origine, ce qui garde l'envoi loin de la limite de
+ * corps de requête de Vercel — surtout quand une photo l'accompagne.
+ */
+async function toMono24k(
+  buffer: AudioBuffer
+): Promise<{ samples: Float32Array; sampleRate: number }> {
+  const Offline: typeof OfflineAudioContext | undefined =
+    window.OfflineAudioContext ??
+    (window as unknown as { webkitOfflineAudioContext?: typeof OfflineAudioContext })
+      .webkitOfflineAudioContext;
+
+  if (Offline && buffer.sampleRate > AUDIO_TARGET_RATE) {
+    try {
+      const length = Math.max(1, Math.ceil(buffer.duration * AUDIO_TARGET_RATE));
+      const offline = new Offline(1, length, AUDIO_TARGET_RATE);
+      const source = offline.createBufferSource();
+      source.buffer = buffer;
+      source.connect(offline.destination);
+      source.start();
+      const rendered = await offline.startRendering();
+      return { samples: rendered.getChannelData(0), sampleRate: AUDIO_TARGET_RATE };
+    } catch {
+      // Navigateur récalcitrant : on garde le taux d'origine.
+    }
+  }
+
+  const channels = Array.from({ length: buffer.numberOfChannels }, (_, i) =>
+    buffer.getChannelData(i)
+  );
+  return { samples: mixToMono(channels), sampleRate: buffer.sampleRate };
 }
 
 function friendlyError(err: unknown): string {
@@ -124,12 +158,9 @@ export function useRecorder() {
           return;
         }
 
-        const channels = Array.from({ length: buffer.numberOfChannels }, (_, i) =>
-          buffer.getChannelData(i)
-        );
-        const mono = mixToMono(channels);
+        const { samples: mono, sampleRate } = await toMono24k(buffer);
         const peaks = computePeaks(mono);
-        const wav = new Blob([encodeWav(mono, buffer.sampleRate)], {
+        const wav = new Blob([encodeWav(mono, sampleRate)], {
           type: "audio/wav",
         });
 
