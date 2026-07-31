@@ -125,6 +125,12 @@ describe("relais des médias depuis le store privé", () => {
     expect(response.status).toBe(404);
   });
 
+  it("répond 404 quand le stockage est injoignable", async () => {
+    fetchMock.mockRejectedValue(new TypeError("fetch failed"));
+    const response = await streamCardMedia(CARD_ID, "audio", request());
+    expect(response.status).toBe(404);
+  });
+
   it("rejette un identifiant qui n'a pas la forme d'une carte", async () => {
     const response = await streamCardMedia("../../secret", "audio", request());
     expect(response.status).toBe(404);

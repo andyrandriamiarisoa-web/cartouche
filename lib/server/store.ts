@@ -180,7 +180,12 @@ export async function streamCardMedia(
     if (value) requestHeaders.set(name, value);
   }
 
-  const upstream = await fetch(blobUrl, { headers: requestHeaders, cache: "no-store" });
+  let upstream: Response;
+  try {
+    upstream = await fetch(blobUrl, { headers: requestHeaders, cache: "no-store" });
+  } catch {
+    return new Response(null, { status: 404 });
+  }
   // 200, 206 (plage), 304 (déjà en cache) et 416 (plage invalide) sont des
   // réponses légitimes à transmettre ; le reste devient un 404.
   if (!upstream.ok && ![304, 416].includes(upstream.status)) {
