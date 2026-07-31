@@ -3,6 +3,7 @@ import { Caveat, Fraunces } from "next/font/google";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, siteUrl } from "@/lib/site";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ToastProvider } from "@/components/Toast";
+import { UpdateBanner } from "@/components/UpdateBanner";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -52,6 +53,7 @@ export default function RootLayout({
         <ToastProvider>
           <div className="flex-1">{children}</div>
           <SiteFooter />
+          <UpdateBanner />
         </ToastProvider>
       </body>
     </html>
