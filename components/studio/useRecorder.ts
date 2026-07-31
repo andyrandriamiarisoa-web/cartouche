@@ -68,6 +68,25 @@ async function toMono24k(
   return { samples: mixToMono(channels), sampleRate: buffer.sampleRate };
 }
 
+/**
+ * Coupe le signal à la durée annoncée. L'arrêt automatique reposait sur
+ * `requestAnimationFrame`, qui ne tourne plus dès que l'onglet passe en
+ * arrière-plan — écran verrouillé, application changée, soit exactement le
+ * geste de qui pose son téléphone pour enregistrer la mer. L'enregistrement
+ * filait alors bien au-delà de trente secondes : fichier hors budget, envoi
+ * refusé, et une durée affichée qui mentait. Le rognage tranche la question
+ * quels que soient les minuteurs.
+ */
+export function trimToMaxDuration(
+  samples: Float32Array,
+  sampleRate: number,
+  maxSeconds: number = MAX_DURATION_S
+): Float32Array {
+  const maxSamples = Math.floor(maxSeconds * sampleRate);
+  if (maxSamples <= 0 || samples.length <= maxSamples) return samples;
+  return samples.subarray(0, maxSamples);
+}
+
 function friendlyError(err: unknown): string {
   if (err instanceof DOMException) {
     if (err.name === "NotAllowedError" || err.name === "SecurityError") {
@@ -109,11 +128,14 @@ export function useRecorder() {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const rafRef = useRef(0);
+  /** Arrêt de secours : les minuteurs survivent à un onglet en arrière-plan. */
+  const stopTimerRef = useRef(0);
   const startedAtRef = useRef(0);
   const resultUrlRef = useRef<string | null>(null);
 
   const cleanupCapture = useCallback(() => {
     cancelAnimationFrame(rafRef.current);
+    window.clearTimeout(stopTimerRef.current);
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     recorderRef.current = null;
@@ -158,7 +180,8 @@ export function useRecorder() {
           return;
         }
 
-        const { samples: mono, sampleRate } = await toMono24k(buffer);
+        const { samples, sampleRate } = await toMono24k(buffer);
+        const mono = trimToMaxDuration(samples, sampleRate);
         const peaks = computePeaks(mono);
         const wav = new Blob([encodeWav(mono, sampleRate)], {
           type: "audio/wav",
@@ -170,7 +193,8 @@ export function useRecorder() {
         setResult({
           wavBlob: wav,
           url,
-          duration: Math.min(buffer.duration, MAX_DURATION_S),
+          // Mesurée sur le signal réellement conservé, jamais sur l'intention.
+          duration: mono.length / sampleRate,
           peaks,
         });
         setStatus("ready");
@@ -252,10 +276,21 @@ export function useRecorder() {
       cleanupCapture();
       void process(blob);
     });
+    // Micro débranché, onglet à court de mémoire : sans cela l'écran restait
+    // sur « enregistrement en cours », indéfiniment et sans issue.
+    recorder.addEventListener("error", () => {
+      cleanupCapture();
+      setError("L'enregistrement s'est interrompu. Réessayez.");
+      setStatus("error");
+    });
 
     recorder.start(250);
     startedAtRef.current = performance.now();
     setStatus("recording");
+
+    // L'aiguille suit `requestAnimationFrame`, qui s'arrête avec l'onglet ;
+    // la coupure, elle, est confiée à un minuteur qui survit à l'arrière-plan.
+    stopTimerRef.current = window.setTimeout(stop, MAX_DURATION_S * 1000);
 
     const tick = () => {
       const seconds = (performance.now() - startedAtRef.current) / 1000;
@@ -277,5 +312,29 @@ export function useRecorder() {
     setStatus("idle");
   }, [cleanupCapture, discardResult]);
 
-  return { status, error, elapsed, result, analyser, supported, start, stop, reset };
+  /** Remet en place un enregistrement retrouvé sur l'appareil. */
+  const restore = useCallback(
+    (wavBlob: Blob, duration: number, peaks: number[]) => {
+      discardResult();
+      const url = URL.createObjectURL(wavBlob);
+      resultUrlRef.current = url;
+      setResult({ wavBlob, url, duration, peaks });
+      setError(null);
+      setStatus("ready");
+    },
+    [discardResult]
+  );
+
+  return {
+    status,
+    error,
+    elapsed,
+    result,
+    analyser,
+    supported,
+    start,
+    stop,
+    reset,
+    restore,
+  };
 }

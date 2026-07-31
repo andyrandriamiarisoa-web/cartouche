@@ -52,6 +52,12 @@ Les aperçus générés pour WhatsApp / iMessage — illustration ou photo :
   requis pour écouter.
 - **Aperçu riche dans les messageries** : image OpenGraph générée par carte
   (thème, titre, forme d'onde, durée) + `og:audio`.
+- **Rien ne se perd** : dès qu'une prise est prête, elle est écrite sur
+  l'appareil (IndexedDB) avec la photo et les mots déjà saisis. Un
+  rechargement, une mise à jour, un onglet évincé par le système ou un envoi
+  refusé ne détruisent plus l'enregistrement : il est reproposé au retour dans
+  le studio. Le brouillon ne quitte jamais l'appareil et disparaît dès que la
+  carte est partie.
 - **Galerie personnelle** (`/galerie`) : les cartes envoyées depuis l'appareil,
   stockées en localStorage. Copie de lien, suppression en deux temps.
 - **Suppression sécurisée** : un jeton de propriété est remis à l'envoi ; seule
@@ -75,11 +81,18 @@ cards/{id}/card.json    ← métadonnées + empreinte du jeton de propriété
   métadonnées JSON validées : longueurs, thème, durée, forme d'onde, signatures
   RIFF/WAVE et JPEG, garde d'origine). Répond
   `{ id, path, createdAt, ownerToken, photoUrl }`.
-- `GET /c/{id}` — rendu serveur : `list()` sur le préfixe, lecture du JSON,
-  `notFound()` sinon. Métadonnées OG + image générée (`opengraph-image.tsx`,
+- `GET /c/{id}` — rendu serveur : lecture du JSON dans le blob, `notFound()`
+  sinon. Métadonnées OG + image générée (`opengraph-image.tsx`,
   fonte Fraunces embarquée, cache CDN 24 h). Les décors sont partagés entre la
   carte, le sélecteur et l'image OG : une seule source de vérité
   (`components/postcard/decors.tsx`).
+- `GET /c/{id}/audio.wav` et `GET /c/{id}/photo.jpg` — le store est **privé**,
+  donc aucun média n'a d'URL publique : l'application les relaie elle-même. Le
+  lien de partage reste public et sans compte, mais les fichiers ne sont
+  atteignables qu'à travers l'application, et disparaissent avec la carte. Les
+  requêtes par plage sont transmises telles quelles — sans elles, iOS refuse de
+  lire un `<audio>` et le déplacement dans l'enregistrement ne fonctionne pas —
+  et la réponse complète est immuable, donc absorbée par le CDN.
 - `DELETE /api/cards/{id}` — `Authorization: Bearer {ownerToken}`, comparaison
   d'empreintes à temps constant, suppression du préfixe complet.
 
@@ -117,7 +130,7 @@ cp .env.example .env.development.local
 Scripts utiles :
 
 ```bash
-npm test              # tests unitaires (WAV, onde, validation, ids, décors, photo)
+npm test              # tests unitaires (WAV, onde, validation, ids, décors, photo, médias)
 npm run lint          # ESLint
 npm run typecheck     # tsc --noEmit
 npm run build         # build de production
@@ -130,10 +143,16 @@ npm run screenshots   # captures docs/ (serveur de prod sur :4310 requis)
 
 1. **Importer le repo** dans Vercel (framework détecté : Next.js, rien à
    configurer).
-2. **Créer le Blob store** : onglet **Storage** du projet → **Create Database**
-   → **Blob** → le connecter au projet. La variable `BLOB_READ_WRITE_TOKEN`
-   est injectée automatiquement. _C'est la seule étape manuelle._
+2. **Créer le Blob store**, en **accès privé** : onglet **Storage** du projet →
+   **Create Database** → **Blob**, ou bien
+   `vercel blob create-store cartouche --access private`. Le connecter au
+   projet injecte `BLOB_READ_WRITE_TOKEN` automatiquement. _C'est la seule
+   étape manuelle._
 3. Redéployer si le store a été créé après le premier déploiement.
+
+L'accès du store se choisit à sa création et ne se change plus ensuite. Un
+store **public** ne convient pas : l'application écrit en `access: 'private'`
+et le blob refuse le mélange des deux modes.
 
 Les URL publiques (OG, sitemap) se déduisent automatiquement de
 `VERCEL_PROJECT_PRODUCTION_URL` ; `NEXT_PUBLIC_SITE_URL` permet de forcer un

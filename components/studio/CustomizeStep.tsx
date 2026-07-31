@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ArrowLeft, Loader2, Send } from "lucide-react";
-import { DEFAULT_THEME, THEMES, THEME_IDS, type ThemeId } from "@/lib/themes";
+import { THEMES, THEME_IDS, type ThemeId } from "@/lib/themes";
 import { TEXT_LIMITS, type CardData } from "@/lib/types";
 import type { ProcessedPhoto } from "@/lib/photo";
 import type { RecordingResult } from "@/components/studio/useRecorder";
@@ -21,25 +21,32 @@ interface CustomizeStepProps {
   recording: RecordingResult;
   photo: ProcessedPhoto | null;
   onPhotoChange: (photo: ProcessedPhoto | null) => void;
+  /**
+   * Le formulaire est piloté par le studio : ce qui est écrit ici survit à un
+   * retour en arrière, à un rechargement et à une mise à jour.
+   */
+  values: CardFormValues;
+  onValuesChange: (values: CardFormValues) => void;
   sending: boolean;
   submitError: string | null;
   onBack: () => void;
-  onSubmit: (values: CardFormValues) => void;
+  onSubmit: () => void;
 }
 
 export function CustomizeStep({
   recording,
   photo,
   onPhotoChange,
+  values,
+  onValuesChange,
   sending,
   submitError,
   onBack,
   onSubmit,
 }: CustomizeStepProps) {
-  const [title, setTitle] = useState("");
-  const [message, setMessage] = useState("");
-  const [location, setLocation] = useState("");
-  const [theme, setTheme] = useState<ThemeId>(DEFAULT_THEME);
+  const { title, message, location, theme } = values;
+  const set = <K extends keyof CardFormValues>(key: K, value: CardFormValues[K]) =>
+    onValuesChange({ ...values, [key]: value });
 
   const createdAt = useMemo(() => new Date().toISOString(), []);
 
@@ -84,7 +91,7 @@ export function CustomizeStep({
           className="flex flex-col gap-7"
           onSubmit={(e) => {
             e.preventDefault();
-            if (!sending) onSubmit({ title, message, location, theme });
+            if (!sending) onSubmit();
           }}
         >
           <div>
@@ -94,7 +101,11 @@ export function CustomizeStep({
                 {THEMES[theme].name} · {THEMES[theme].tagline}
               </span>
             </p>
-            <DecorPicker value={theme} onChange={setTheme} mutedByPhoto={Boolean(photo)} />
+            <DecorPicker
+              value={theme}
+              onChange={(next: ThemeId) => set("theme", next)}
+              mutedByPhoto={Boolean(photo)}
+            />
             {photo && (
               <p className="mt-2 text-xs text-ink-soft">
                 Votre photo occupe le devant de la carte : le décor habille le
@@ -118,7 +129,7 @@ export function CustomizeStep({
               placeholder="Le rire d'Anna"
               value={title}
               maxLength={TEXT_LIMITS.title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => set("title", e.target.value)}
             />
           </div>
 
@@ -132,7 +143,7 @@ export function CustomizeStep({
               placeholder="Sanary-sur-Mer"
               value={location}
               maxLength={TEXT_LIMITS.location}
-              onChange={(e) => setLocation(e.target.value)}
+              onChange={(e) => set("location", e.target.value)}
             />
           </div>
 
@@ -150,7 +161,7 @@ export function CustomizeStep({
               placeholder="On pense à vous depuis la plage…"
               value={message}
               maxLength={TEXT_LIMITS.message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={(e) => set("message", e.target.value)}
             />
           </div>
 
@@ -168,7 +179,7 @@ export function CustomizeStep({
               disabled={sending}
             >
               <ArrowLeft className="h-4 w-4" aria-hidden />
-              Ré-enregistrer
+              Retour
             </button>
             <button type="submit" className="btn btn-primary flex-1" disabled={sending}>
               {sending ? (

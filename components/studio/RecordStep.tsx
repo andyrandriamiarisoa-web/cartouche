@@ -10,9 +10,15 @@ import { InlinePlayer } from "@/components/studio/InlinePlayer";
 interface RecordStepProps {
   recorder: ReturnType<typeof useRecorder>;
   onContinue: () => void;
+  /** Appelé quand l'expéditeur jette lui-même sa prise (« Refaire »). */
+  onDiscardRecording: () => void;
 }
 
-export function RecordStep({ recorder, onContinue }: RecordStepProps) {
+export function RecordStep({
+  recorder,
+  onContinue,
+  onDiscardRecording,
+}: RecordStepProps) {
   const { status, error, elapsed, result, analyser, supported } = recorder;
 
   return (
@@ -115,7 +121,14 @@ export function RecordStep({ recorder, onContinue }: RecordStepProps) {
           </h2>
           <InlinePlayer src={result.url} duration={result.duration} peaks={result.peaks} />
           <div className="flex flex-wrap items-center justify-center gap-3">
-            <button type="button" className="btn btn-ghost" onClick={recorder.reset}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => {
+                onDiscardRecording();
+                recorder.reset();
+              }}
+            >
               <RotateCcw className="h-4 w-4" aria-hidden />
               Refaire
             </button>

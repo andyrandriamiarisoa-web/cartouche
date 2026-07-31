@@ -12,8 +12,11 @@ export interface ProcessedPhoto {
   blob: Blob;
   /** URL objet pour l'aperçu local (à révoquer par l'appelant). */
   url: string;
-  width: number;
-  height: number;
+}
+
+/** Reconstruit l'aperçu d'une photo déjà encodée (brouillon retrouvé). */
+export function photoFromBlob(blob: Blob): ProcessedPhoto {
+  return { blob, url: URL.createObjectURL(blob) };
 }
 
 async function loadBitmap(file: File): Promise<ImageBitmap | HTMLImageElement> {
@@ -92,7 +95,7 @@ export async function processPhoto(file: File): Promise<ProcessedPhoto> {
   if (!blob) throw new Error("encodage impossible");
   if (blob.size > MAX_PHOTO_BYTES) throw new Error("image trop lourde");
 
-  return { blob, url: URL.createObjectURL(blob), width, height };
+  return photoFromBlob(blob);
 }
 
 /** Message court et lisible pour l'utilisateur. */
