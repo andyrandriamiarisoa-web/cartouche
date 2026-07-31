@@ -52,6 +52,12 @@ Les aperçus générés pour WhatsApp / iMessage — illustration ou photo :
   requis pour écouter.
 - **Aperçu riche dans les messageries** : image OpenGraph générée par carte
   (thème, titre, forme d'onde, durée) + `og:audio`.
+- **Rien ne se perd** : dès qu'une prise est prête, elle est écrite sur
+  l'appareil (IndexedDB) avec la photo et les mots déjà saisis. Un
+  rechargement, une mise à jour, un onglet évincé par le système ou un envoi
+  refusé ne détruisent plus l'enregistrement : il est reproposé au retour dans
+  le studio. Le brouillon ne quitte jamais l'appareil et disparaît dès que la
+  carte est partie.
 - **Galerie personnelle** (`/galerie`) : les cartes envoyées depuis l'appareil,
   stockées en localStorage. Copie de lien, suppression en deux temps.
 - **Suppression sécurisée** : un jeton de propriété est remis à l'envoi ; seule

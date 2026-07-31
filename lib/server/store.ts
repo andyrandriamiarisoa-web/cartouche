@@ -38,10 +38,7 @@ export interface CreatedCard {
   ownerToken: string;
 }
 
-/**
- * Écrit les médias puis les métadonnées d'une nouvelle carte dans le blob.
- * Le JSON est écrit en dernier : une carte n'est jamais visible sans son audio.
- */
+/** Écrit les médias puis les métadonnées d'une nouvelle carte dans le blob. */
 export async function saveCard(
   id: string,
   audio: ArrayBuffer,
@@ -49,46 +46,64 @@ export async function saveCard(
   ownerToken: string,
   photo?: ArrayBuffer
 ): Promise<CardData> {
-  await put(cardBlobPath(id, "audio"), audio, {
-    access: BLOB_ACCESS,
-    addRandomSuffix: false,
-    allowOverwrite: false,
-    contentType: CARD_MEDIA.audio.contentType,
-    cacheControlMaxAge: AUDIO_CACHE_SECONDS,
-  });
+  // Une carte s'écrit en trois objets. Si l'un échoue, les précédents restaient
+  // dans le store sans que rien n'y mène : invisibles, facturés, éternels. On
+  // les reprend avant de propager l'erreur.
+  const written: string[] = [];
 
-  if (photo) {
-    await put(cardBlobPath(id, "photo"), photo, {
+  try {
+    const audioPath = cardBlobPath(id, "audio");
+    await put(audioPath, audio, {
       access: BLOB_ACCESS,
       addRandomSuffix: false,
       allowOverwrite: false,
-      contentType: CARD_MEDIA.photo.contentType,
+      contentType: CARD_MEDIA.audio.contentType,
       cacheControlMaxAge: AUDIO_CACHE_SECONDS,
     });
+    written.push(audioPath);
+
+    if (photo) {
+      const photoPath = cardBlobPath(id, "photo");
+      await put(photoPath, photo, {
+        access: BLOB_ACCESS,
+        addRandomSuffix: false,
+        allowOverwrite: false,
+        contentType: CARD_MEDIA.photo.contentType,
+        cacheControlMaxAge: AUDIO_CACHE_SECONDS,
+      });
+      written.push(photoPath);
+    }
+
+    const stored: StoredCard = {
+      ...meta,
+      id,
+      createdAt: new Date().toISOString(),
+      // Chemins servis par l'application, jamais l'URL interne du blob.
+      audioUrl: cardMediaPath(id, "audio"),
+      ...(photo ? { photoUrl: cardMediaPath(id, "photo") } : {}),
+      ownerHash: await hashToken(ownerToken),
+      version: 1,
+    };
+
+    // Le JSON est écrit en dernier : une carte n'est jamais visible sans son audio.
+    await put(`${cardBlobPrefix(id)}card.json`, JSON.stringify(stored), {
+      access: BLOB_ACCESS,
+      addRandomSuffix: false,
+      allowOverwrite: false,
+      contentType: "application/json",
+      cacheControlMaxAge: JSON_CACHE_SECONDS,
+    });
+
+    const { ownerHash: _ownerHash, ...card } = stored;
+    void _ownerHash;
+    return card;
+  } catch (err) {
+    if (written.length > 0) {
+      // Au mieux : un ménage raté ne doit pas masquer la vraie erreur.
+      await del(written).catch(() => {});
+    }
+    throw err;
   }
-
-  const stored: StoredCard = {
-    ...meta,
-    id,
-    createdAt: new Date().toISOString(),
-    // Chemins servis par l'application, jamais l'URL interne du blob.
-    audioUrl: cardMediaPath(id, "audio"),
-    ...(photo ? { photoUrl: cardMediaPath(id, "photo") } : {}),
-    ownerHash: await hashToken(ownerToken),
-    version: 1,
-  };
-
-  await put(`${cardBlobPrefix(id)}card.json`, JSON.stringify(stored), {
-    access: BLOB_ACCESS,
-    addRandomSuffix: false,
-    allowOverwrite: false,
-    contentType: "application/json",
-    cacheControlMaxAge: JSON_CACHE_SECONDS,
-  });
-
-  const { ownerHash: _ownerHash, ...card } = stored;
-  void _ownerHash;
-  return card;
 }
 
 async function readStoredCard(id: string): Promise<StoredCard | null> {
