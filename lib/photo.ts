@@ -1,6 +1,11 @@
 "use client";
 
-import { MAX_PHOTO_BYTES, PHOTO_ASPECT, PHOTO_MAX_WIDTH } from "@/lib/types";
+import {
+  MAX_PHOTO_BYTES,
+  PHOTO_ASPECT,
+  PHOTO_MAX_WIDTH,
+  PHOTO_TARGET_BYTES,
+} from "@/lib/types";
 
 export interface ProcessedPhoto {
   /** JPEG recadré en 4:3, prêt à être envoyé. */
@@ -77,10 +82,12 @@ export async function processPhoto(file: File): Promise<ProcessedPhoto> {
   ctx.drawImage(source, sx, sy, cropWidth, cropHeight, 0, 0, width, height);
   if ("close" in source) source.close();
 
+  // On descend la qualité jusqu'à atteindre le poids visé : l'envoi doit rester
+  // largement sous la limite de corps de requête, audio compris.
   let blob: Blob | null = null;
-  for (const quality of [0.82, 0.7, 0.58]) {
+  for (const quality of [0.8, 0.7, 0.6, 0.5, 0.4]) {
     blob = await encode(canvas, quality);
-    if (blob && blob.size <= MAX_PHOTO_BYTES) break;
+    if (blob && blob.size <= PHOTO_TARGET_BYTES) break;
   }
   if (!blob) throw new Error("encodage impossible");
   if (blob.size > MAX_PHOTO_BYTES) throw new Error("image trop lourde");

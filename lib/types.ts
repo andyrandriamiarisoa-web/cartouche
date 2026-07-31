@@ -6,14 +6,35 @@ export const PEAK_COUNT = 72;
 /** Durée maximale d'un enregistrement, en secondes. */
 export const MAX_DURATION_S = 30;
 
-/** Taille maximale acceptée pour le fichier audio (WAV mono ≤ 48 kHz · 30 s ≈ 2,9 Mo). */
-export const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
+/**
+ * Les fonctions serverless Vercel refusent toute requête dont le corps dépasse
+ * 4,5 Mo — et ce refus vient de la plateforme, avant même d'atteindre notre
+ * code : ni message clair, ni trace. Tout le pipeline vise donc à rester
+ * nettement en dessous, avec cette marge comme garde-fou côté client.
+ */
+export const MAX_UPLOAD_BYTES = 4_200_000;
 
-/** Taille maximale acceptée pour la photo, après ré-encodage côté client. */
-export const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
+/**
+ * Taille maximale du fichier audio : un WAV mono 24 kHz de 30 s pèse ~1,4 Mo,
+ * mais on laisse la place au repli 48 kHz des navigateurs sans
+ * `OfflineAudioContext` (~2,9 Mo).
+ */
+export const MAX_AUDIO_BYTES = 2_900_000;
+
+/**
+ * L'audio est ré-échantillonné à 24 kHz avant encodage : largement assez pour
+ * une voix ou une ambiance, et deux fois plus léger qu'un 48 kHz.
+ */
+export const AUDIO_TARGET_RATE = 24000;
+
+/** Plafond dur de la photo, vérifié aussi côté serveur. */
+export const MAX_PHOTO_BYTES = 1_400_000;
+
+/** Poids visé pour la photo : on baisse la qualité JPEG jusqu'à l'atteindre. */
+export const PHOTO_TARGET_BYTES = 1_200_000;
 
 /** Largeur cible de la photo ré-encodée (recadrée en 4:3). */
-export const PHOTO_MAX_WIDTH = 1600;
+export const PHOTO_MAX_WIDTH = 1400;
 export const PHOTO_ASPECT = 4 / 3;
 
 export const TEXT_LIMITS = {
