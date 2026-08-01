@@ -52,6 +52,13 @@ Les aperçus générés pour WhatsApp / iMessage — illustration ou photo :
   requis pour écouter.
 - **Aperçu riche dans les messageries** : image OpenGraph générée par carte
   (thème, titre, forme d'onde, durée) + `og:audio`.
+- **La carte en vidéo** : un aperçu de lien reste une image fixe, et un GIF n'a
+  pas de piste audio. Pour que la carte se lise *dans* la conversation, avec le
+  son, elle s'exporte en MP4 — la carte animée, l'onde qui progresse,
+  l'enregistrement en bande-son — remis à WhatsApp par le partage natif du
+  téléphone. Fabriqué dans le navigateur (WebCodecs), en H.264 Baseline et
+  AAC-LC : le profil que décodent aussi bien un vieil iPhone qu'un Android
+  d'entrée de gamme.
 - **Rien ne se perd** : dès qu'une prise est prête, elle est écrite sur
   l'appareil (IndexedDB) avec la photo et les mots déjà saisis. Un
   rechargement, une mise à jour, un onglet évincé par le système ou un envoi
@@ -93,6 +100,11 @@ cards/{id}/card.json    ← métadonnées + empreinte du jeton de propriété
   requêtes par plage sont transmises telles quelles — sans elles, iOS refuse de
   lire un `<audio>` et le déplacement dans l'enregistrement ne fonctionne pas —
   et la réponse complète est immuable, donc absorbée par le CDN.
+- `GET /c/{id}/frame.png` — fond de la vidéo : la carte en 720×720, **sans** sa
+  forme d'onde. Rendu par satori comme l'image de partage, donc mêmes décors et
+  même typographie sans rien dupliquer côté client. Le navigateur n'anime que
+  l'onde, dans la bande laissée vide — les deux ne s'accordent que par les
+  constantes de `lib/video/layout.ts`, qu'un test verrouille.
 - `DELETE /api/cards/{id}` — `Authorization: Bearer {ownerToken}`, comparaison
   d'empreintes à temps constant, suppression du préfixe complet.
 

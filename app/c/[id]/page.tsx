@@ -9,6 +9,7 @@ import { siteUrl } from "@/lib/site";
 import { SiteNav } from "@/components/SiteNav";
 import { PlayableCard } from "@/components/postcard/PlayableCard";
 import { CardActions } from "@/components/card/CardActions";
+import { VideoShareButton } from "@/components/card/VideoShareButton";
 import { FALLBACK_TITLE } from "@/components/postcard/shared";
 
 export const runtime = "nodejs";
@@ -115,8 +116,9 @@ export default async function CardPage({ params }: CardPageProps) {
             lire le message.
           </p>
 
-          <div className="mt-8">
+          <div className="mt-8 flex flex-col items-center gap-5">
             <CardActions path={`/c/${card.id}`} title={title} />
+            <VideoShareButton card={card} />
           </div>
 
           <div className="panel mx-auto mt-14 max-w-xl px-8 py-10 text-center">
