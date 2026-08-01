@@ -13,15 +13,18 @@ import {
 } from "@/lib/share";
 import { useToast } from "@/components/Toast";
 import { PlayableCard } from "@/components/postcard/PlayableCard";
+import { VideoShareButton } from "@/components/card/VideoShareButton";
 import { FALLBACK_TITLE } from "@/components/postcard/shared";
 
 interface ShareStepProps {
   card: CardData;
   path: string;
+  /** L'enregistrement local : évite de le retélécharger pour monter la vidéo. */
+  audioBlob?: Blob;
   onCreateAnother: () => void;
 }
 
-export function ShareStep({ card, path, onCreateAnother }: ShareStepProps) {
+export function ShareStep({ card, path, audioBlob, onCreateAnother }: ShareStepProps) {
   const toast = useToast();
   const [shareUrl, setShareUrl] = useState("");
   const [nativeAvailable, setNativeAvailable] = useState(false);
@@ -108,6 +111,14 @@ export function ShareStep({ card, path, onCreateAnother }: ShareStepProps) {
           <ExternalLink className="h-4 w-4" aria-hidden />
           Voir la carte
         </Link>
+      </div>
+
+      <div className="mt-10 border-t border-line pt-8">
+        <p className="mx-auto mb-4 max-w-sm text-sm text-ink-soft">
+          Pour qu&apos;elle se lise <strong className="font-semibold text-ink">dans la
+          conversation</strong>, sans que personne n&apos;ait à ouvrir de lien :
+        </p>
+        <VideoShareButton card={card} audioBlob={audioBlob} />
       </div>
 
       <p className="mt-8 text-sm text-ink-soft">

@@ -67,9 +67,11 @@ export function StudioFlow() {
   const [photo, setPhoto] = useState<ProcessedPhoto | null>(null);
   const [values, setValues] = useState<CardFormValues>(EMPTY_VALUES);
   const [pendingDraft, setPendingDraft] = useState<CardDraft | null>(null);
-  const [published, setPublished] = useState<{ card: CardData; path: string } | null>(
-    null
-  );
+  const [published, setPublished] = useState<{
+    card: CardData;
+    path: string;
+    audio: Blob;
+  } | null>(null);
 
   // L'URL objet de la photo doit être libérée à chaque remplacement.
   const photoUrlRef = useRef<string | null>(null);
@@ -202,7 +204,7 @@ export function StudioFlow() {
         ownerToken: data.ownerToken,
       });
 
-      setPublished({ card, path: data.path });
+      setPublished({ card, path: data.path, audio: recording.wavBlob });
       // La carte est partie : le brouillon n'a plus de raison d'être.
       void clearDraft();
       setStep("share");
@@ -263,6 +265,7 @@ export function StudioFlow() {
         <ShareStep
           card={published.card}
           path={published.path}
+          audioBlob={published.audio}
           onCreateAnother={createAnother}
         />
       )}
